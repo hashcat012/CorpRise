@@ -1,51 +1,30 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { auth } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-
-export default function AuthCallback() {
+export default function AuthCallback({ email, password }) {
   const navigate = useNavigate();
-  const hasProcessed = useRef(false);
 
   useEffect(() => {
-    if (hasProcessed.current) return;
-    hasProcessed.current = true;
-
-    const processSession = async () => {
+    const login = async () => {
       try {
-        const hash = window.location.hash;
-        const params = new URLSearchParams(hash.substring(1));
-        const sessionId = params.get('session_id');
-
-        if (!sessionId) {
-          navigate('/login');
-          return;
-        }
-
-        const response = await fetch(`${BACKEND_URL}/api/auth/session`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ session_id: sessionId })
-        });
-
-        if (!response.ok) {
-          throw new Error('Session creation failed');
-        }
-
-        const user = await response.json();
-        navigate('/dashboard', { state: { user }, replace: true });
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        const token = await user.getIdToken();
+        localStorage.setItem('firebaseToken', token);
+        navigate('/dashboard', { replace: true });
       } catch (error) {
-        console.error('Auth callback error:', error);
+        console.error('Firebase login error:', error);
         navigate('/login');
       }
     };
 
-    processSession();
-  }, [navigate]);
+    login();
+  }, [navigate, email, password]);
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center bg-[#09090B]" data-testid="auth-callback-page">
+    <div className="h-screen w-screen flex items-center justify-center bg-[#09090B]">
       <div className="text-white font-mono text-sm uppercase tracking-widest animate-pulse">
         AUTHENTICATING...
       </div>
